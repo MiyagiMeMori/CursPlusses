@@ -260,21 +260,28 @@ Container<std::string> to_strings(const Container<T, Args...>& container) {
 }
 //======================================================================
 #include <type_traits>
-
-template <typename T>
-struct get_size {
-    typedef char NO;
-    struct NO { YES[2] };
+template<>
+struct has_mtd {
+    typedef char YES;
+    struct NO { YES m[2]; };
     template <class M, size_t(M::*)() const = &M::size>
     struct HasMtdWrapper { };
-
-    template <class F, size_t(F::*) = &F::size>
-    struct HasFltWrapper { };
 
     template <class C>
     static YES check(HasMtdWrapper<C>* mtd);
     template <class C>
     static NO check(...);
+
+    static bool const value = sizeof(YES) == sizeof(check<T>(0));
+};
+
+template <typename T>
+struct has_fld {
+    typedef char YES;
+    struct NO { YES m[2]; };
+
+    template <class F, size_t(F::*) = &F::size>
+    struct HasFltWrapper { };
 
     template <class C>
     static YES check(HasFltWrapper<C>* mtd);
@@ -285,7 +292,16 @@ struct get_size {
 };
 
 template <class T>
-typename std::enable_if<has_mtd, >
+typename std::enable_if<has_mtd<T>::value, size_t>::type get_size(T &t) {
+    size_t(T::*mtd)() const = &T::size;
+    return (t.*mtd)();
+}
+
+template <class T>
+typename std::enable_if<has_fld<T>::value, size_t>::type get_size(T &t) {
+    size_t(T::*fld) = &T::size;
+    return (t.*fld);
+}
 
 
 
@@ -297,5 +313,4 @@ typename std::enable_if<has_mtd, >
 // }
 // size_t(T::*)() const = &T::size; //указатель на метод класса 
 // size_t (T::*)        = &T::size; //указатель на поле класса 
-//https://youtu.be/G0GUDpT6uQ0?t=426
 //
